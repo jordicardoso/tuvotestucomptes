@@ -14,3 +14,5 @@ yarn-error.log*
 *.sln
 *.swp
 /scripts/firestore-export.json
+/public
+/tests
