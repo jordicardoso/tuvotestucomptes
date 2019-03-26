@@ -22,13 +22,21 @@
               <v-text-field outline v-model="recompte.totalVots" type="number" label="Total Vots" placeholder='0' required></v-text-field>
             </v-flex>
           </v-layout>
-          <v-layout wrap>
-            <v-flex xs3 v-for="partit in partits" v-bind:key="partit.Nomcurt">
-              <v-text-field box v-model="recompte.partits[partit.id]" type="number" min="0" :label="partit.Nomcurt" placeholder='0' required></v-text-field>
+          <v-layout wrap v-if="recompte.idMesa">
+            <v-flex xs3 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
+              <v-text-field box v-model="partit.vots" type="number" min="0" :label="partit.abreviat" placeholder='0' required></v-text-field>
             </v-flex>
           </v-layout>
-        <!--<code>{{mesa}}</code>
-        <code>{{recompte}}</code>-->
+          <!--<div class="camera-modal">
+            <video ref="video" class="camera-stream"/>
+            <div class="camera-modal-container">
+              <span @click="capture" class="take-picture-button take-picture-button mdl-button mdl-js-button mdl-button--fab mdl-button--colored">
+                <i class="material-icons">camera</i>
+              </span>
+            </div>
+          </div>-->
+        <!--<code>{{mesa}}</code>-->
+        <!--<code>{{recompte}}</code>-->
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -46,78 +54,145 @@ export default {
       resolve: null,
       reject: null,
       partits: null,
-      recompte: {
-        codProv: this.mesa.codProv + '',
-        idEleccions: idEleccions,
-        idMesa: this.mesa.idMesa,
-        idUser: this.$root.user.uid,
-        municipi: this.mesa.municipi,
-        processat: false,
-        refActa: null,
-        partits: {}
-      }
+      mediaStream: null,
+      recompte: {}
     }
   },
-  mounted(){
+  mounted () {
     var self = this
     db.collection('vots')
-        .where('idUser', '==', this.$root.user.uid)
-        .where('idMesa', '==', this.mesa.idMesa)
-        .where('idEleccions', '==', idEleccions)
-        .orderBy('data','desc').limit(1).get().then(function (querySnapshot) {
-            self.recompte = {}
-            querySnapshot.forEach(function (doc) {
-              let obj = doc.data()
-              obj.id = doc.id
-              self.recompte.push(obj)
-            })
-            // self.loadingMunicipis = false
-          })
+      // .where('idUser', '==', this.$root.user.uid)
+      .where('idMesa', '==', this.mesa.idMesa)
+      .where('idEleccions', '==', idEleccions)
+      .orderBy('data', 'desc').limit(1).get().then(function (querySnapshot) {
+        self.init()
+        querySnapshot.forEach(function (doc) {
+          let obj = doc.data()
+          if (obj) {
+            // obj.id = doc.id
+            // TODO: sincronitzar objecte en comptes de copiar-lo tal qual
+            self.recompte = obj
+          }
+        })
+      })
+    /* navigator.mediaDevices.getUserMedia({ video: true })
+      .then(mediaStream => {
+        this.mediaStream = mediaStream
+        this.$refs.video.srcObject = mediaStream
+        this.$refs.video.play()
+      })
+      .catch(error => console.error('getUserMedia() error:', error)) */
   },
+  /* destroyed () {
+    const tracks = this.mediaStream.getTracks()
+    tracks.map(track => track.stop())
+  }, */
   firestore () {
-    console.log(this.mesa.idMesa)
-    console.log(this.$root.user.uid)
     return {
-      partits: db.collection('eleccions').doc(idEleccions).collection('partits').orderBy('Nomcurt'),
-      /* recompte: db.collection('vots')
-        .where('idUser', '==', this.$root.user.uid)
-        .where('idMesa', '==', this.mesa.idMesa)
-        .where('idEleccions', '==', idEleccions)
-        .orderBy('data','desc').limit(1) */
+      partits: db.collection('eleccions').doc(idEleccions).collection('partits').orderBy('nom')
+    }
+  },
+  computed: {
+    sumaVots () {
+      var sum = 0
+      for (let el in this.recompte.vots) {
+        sum += parseInt(this.recompte.vots[el].vots)
+      }
+      return sum
+    },
+    recompteCorrecte () {
+      return this.sumaVots === parseInt(this.recompte.totalVots)
+    },
+    partitsVots () {
+      var obj = []
+      for (var idPartit in this.partits) {
+        obj.push(
+          {
+            idPartit: idPartit,
+            nom: this.partits[idPartit].nom,
+            abreviat: this.partits[idPartit].abreviat,
+            vots: 0
+          }
+        )
+      }
+      return obj
     }
   },
   methods: {
+    init () {
+      this.recompte = {
+        // _____RELACIONS_____
+        // Província
+        codProv: this.mesa.codProv,
+        // Comarca
+        idComarda: null,
+        // codComarda: null,
+        // Municipi
+        idMunicipi: null,
+        codMunicipi: this.mesa.codMunicipi,
+        // municipi: this.mesa.municipi,
+        // Districte
+        idDistricte: this.mesa.districte + '',
+        // Mesa
+        idMesaFirebase: this.mesa.id,
+        idMesa: this.mesa.idMesa,
+        // codMesa: this.mesa.codMesa,
+        // Eleccions
+        idEleccions: idEleccions,
+        // Usuari
+        idUser: this.$root.user.uid,
+        // ______PROPIETATS_____
+        processat: false,
+        // ______REGISTRE EN SI______
+        refActa: null,
+        totalVots: 0,
+        vots: this.partitsVots
+      }
+    },
+    /* capture () {
+      const mediaStreamTrack = this.mediaStream.getVideoTracks()[0]
+      const imageCapture = new window.ImageCapture(mediaStreamTrack)
+      return imageCapture.takePhoto().then(blob => {
+        console.log(blob)
+      })
+    }, */
     closeDialog () {
       // this.dialog = false
-      console.log(this.partits)
       this.$emit('close', null)
     },
     saveRecompte () {
-      this.recompte.data = new Date()
-      let self = this
-      db.collection('vots').add(this.recompte).then(function () {
-        /* db.collection('meses').doc(this.mesa.idMesa).set({
-          registreVots = true
-        },{ merge: true }) */
-        self.mesa.registreVots = true
-        db.collection('meses')
-          .where('idMesa', '==', self.mesa.idMesa)
-          .get()
-          .then(function (querySnapshot) {
-            querySnapshot.forEach(function (doc) {
-              // console.log(doc)
-              // console.log(doc.data())
-              // db.collection('meses').doc(doc.id).set(self.mesa.idMesa)
-            })
-            // self.loadingMeses = false
+      if (this.recompteCorrecte) {
+        this.recompte.data = new Date()
+        let self = this
+        db.collection('vots').add(this.recompte).then(function () {
+          self.mesa.registrat = true
+          db.collection('meses').doc(self.mesa.id).update({ registrat: true }).then(() => {
+            self.$emit('close', self.recompte)
+          }).catch((error) => {
+            console.log(error)
+            alert('🤕\nNo s\'ha pogut guardar')
           })
-        // db.collection('meses')
-          // .where('idMesa', '==', self.mesa.idMesa).get().update(self.mesa)
-        // self.mesa.registreVots = true
-        // self.mesa.update(self.mesa)
-      })
-      this.$emit('close', this.recompte)
+        })
+      } else {
+        alert('🤕\nLa suma de vots dels partits no és igual al total de vots')
+      }
     }
   }
 }
 </script>
+
+<style scoped>
+/* .camera-modal {
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    position: absolute;
+    background-color: white;
+    z-index: 10;
+}
+.camera-stream {
+    width: 100%;
+    max-height: 100%;
+} */
+</style>

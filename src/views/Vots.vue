@@ -24,7 +24,7 @@
               </v-list-tile-content>
               <v-list-tile-action>
                 <v-btn icon ripple>
-                  <v-icon :class="[ mesa.registreVots ? 'green--text' : 'grey--text' ]" @click="openDialog(mesa)">how_to_vote</v-icon>
+                  <v-icon :class="[ mesa.registrat ? 'green--text' : 'grey--text' ]" @click="openDialog(mesa)">how_to_vote</v-icon>
                 </v-btn>
               </v-list-tile-action>
             </v-list-tile>
@@ -70,10 +70,10 @@ export default {
   },
   computed: {
     filteredComarques () {
-      if (this.comarques) return this.comarques.filter(o => o.Provincia === this.provincia)
+      if (this.comarques) return this.comarques.filter(o => o.Provincia === this.provincia); else return []
     },
     filteredMunicipis () {
-      if (this.municipis) return this.municipis.filter(o => o['Codi comarca'] === this.comarca.Codi)
+      if (this.municipis) return this.municipis.filter(o => o['Codi comarca'] === this.comarca.Codi); else return []
     }
   },
   methods: {

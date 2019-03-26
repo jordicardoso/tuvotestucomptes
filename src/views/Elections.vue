@@ -64,7 +64,7 @@ export default {
     getDate: function (value) {
       const outDate = value
       let day = outDate.toDate().getDate()
-      let month = outDate.toDate().getMonth() +1
+      let month = outDate.toDate().getMonth() + 1
       let year = outDate.toDate().getFullYear()
       return (day + '/' + month + '/' + year)
     }

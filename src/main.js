@@ -16,8 +16,8 @@ firebase.initializeApp({
   apiKey: 'AIzaSyBuVnxXP3BL6J0AysynbBewZrVJ9b-w724',
   authDomain: 'tuvotestucomptes-2ecb8.firebaseapp.com',
   projectId: 'tuvotestucomptes-2ecb8',
-  databaseURL: 'https://tuvotestucomptes-2ecb8.firebaseio.com',
-  storageBucket: 'gs://tuvotestucomptes-2ecb8.appspot.com'
+  databaseURL: 'https://tuvotestucomptes-2ecb8.firebaseio.com'
+  // storageBucket: 'gs://tuvotestucomptes-2ecb8.appspot.com'
 })
 firebase.firestore().enablePersistence()
   .catch(function (err) {
