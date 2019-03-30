@@ -7,26 +7,31 @@
         <v-spacer></v-spacer>
         <v-toolbar-items><v-btn dark flat @click="saveRecompte">Guardar</v-btn></v-toolbar-items>
       </v-toolbar>
-      <v-card-text>
+      <v-card-text class="pt-1">
           <v-layout wrap>
             <v-flex xs12 sm6 md4>
-              <v-text-field label="Municipi" :placeholder="mesa.municipi" readonly></v-text-field>
+              <v-text-field class="mb-1" hide-details label="Municipi" :placeholder="mesa.municipi" readonly></v-text-field>
             </v-flex>
             <v-flex xs12 sm6 md4>
-              <v-text-field label="Local Electoral" :placeholder="mesa.localElectoral" readonly></v-text-field>
+              <v-text-field class="mb-1" hide-details label="Local Electoral" :placeholder="mesa.localElectoral" readonly></v-text-field>
             </v-flex>
             <v-flex xs6>
-              <v-text-field label="Identificació de la Mesa" :placeholder=" mesa.idMesa + ' ' + mesa.mesa + ' : ' + mesa.lletraInici + ' - ' + mesa.lletraFi" readonly></v-text-field>
+              <v-text-field hide-details label="Identificació de la Mesa" :placeholder=" mesa.idMesa + ' ' + mesa.mesa + ' : ' + mesa.lletraInici + ' - ' + mesa.lletraFi" readonly></v-text-field>
             </v-flex>
-            <v-flex xs6>
-              <v-text-field outline v-model="recompte.totalVots" type="number" label="Total Vots" placeholder='0' required></v-text-field>
+            <v-flex offset-xs1 xs5>
+              <v-text-field outline hide-details class="mb-1" v-model="recompte.totalVots" @focus="$event.target.select()" type="number" label="Total Vots" placeholder='0' required></v-text-field>
             </v-flex>
           </v-layout>
           <v-layout wrap v-if="recompte.idMesa">
-            <v-flex xs3 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
-              <v-text-field box v-model="partit.vots" type="number" min="0" :label="partit.abreviat" placeholder='0' required></v-text-field>
+            <v-flex xs4 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
+              <v-text-field box hide-details class="mb-2 mr-1" v-model="partit.vots" @focus="$event.target.select()" type="number" min="0" :label="partit.abreviat" placeholder='0' required></v-text-field>
             </v-flex>
           </v-layout>
+          <!--https://stackoverflow.com/questions/44989162/file-upload-in-vuetify-->
+          <input type="file" ref="image" style="display:none" accept="image/*" capture="environment" @change="onFilePicked">
+          <v-btn :loading="adjuntant" :disabled="adjuntant" block large color="secondary" @click="pickFile"><v-icon left>camera</v-icon>Adjuntar foto de l'acta</v-btn>
+          <v-progress-linear v-show="adjuntant" v-model="progress"></v-progress-linear>
+          <v-img :src="imageUrl"/>
           <!--<div class="camera-modal">
             <video ref="video" class="camera-stream"/>
             <div class="camera-modal-container">
@@ -44,7 +49,7 @@
 
 <script>
 import { db, idEleccions } from '../main'
-
+import firebase from 'firebase/app'
 export default {
   props: ['mesa', 'dialog'],
   data () {
@@ -55,6 +60,11 @@ export default {
       reject: null,
       partits: null,
       mediaStream: null,
+      imageName: '',
+      imageFile: '',
+      imageUrl: '',
+      adjuntant: false,
+      progress: 0,
       recompte: {}
     }
   },
@@ -125,16 +135,16 @@ export default {
         // Província
         codProv: this.mesa.codProv,
         // Comarca
-        idComarda: null,
+        // idComarda: null,
         // codComarda: null,
         // Municipi
-        idMunicipi: null,
+        // idMunicipi: null,
         codMunicipi: this.mesa.codMunicipi,
-        // municipi: this.mesa.municipi,
+        municipi: this.mesa.municipi,
         // Districte
-        idDistricte: this.mesa.districte + '',
+        // idDistricte: this.mesa.districte + '',
         // Mesa
-        idMesaFirebase: this.mesa.id,
+        // idMesaFirebase: this.mesa.id,
         idMesa: this.mesa.idMesa,
         // codMesa: this.mesa.codMesa,
         // Eleccions
@@ -142,6 +152,7 @@ export default {
         // Usuari
         idUser: this.$root.user.uid,
         // ______PROPIETATS_____
+        data: '',
         processat: false,
         // ______REGISTRE EN SI______
         refActa: null,
@@ -159,6 +170,54 @@ export default {
     closeDialog () {
       // this.dialog = false
       this.$emit('close', null)
+    },
+    onFilePicked (f) {
+      console.log(f)
+      const files = f.target.files
+      if (files[0] !== undefined) {
+        this.adjuntant = true
+        this.imageName = files[0].name
+        if (this.imageName.lastIndexOf('.') <= 0) {
+          return
+        }
+        const fr = new FileReader()
+        fr.readAsDataURL(files[0])
+        fr.addEventListener('load', () => {
+          this.imageUrl = fr.result
+          this.imageFile = files[0] // this is an image file that can be sent to server...
+          console.log(this.imageUrl)
+          console.log(this.imageFile)
+          var storageRef = firebase.storage().ref()
+          var ref = storageRef.child(this.imageFile.name)
+          var progress = ref.put(this.imageFile).then(function (snapshot) {
+            console.log('ref.put(...')
+            console.log(snapshot)
+            this.adjuntant = false
+          })
+          progress.on('state_changed', function (snapshot) {
+            this.progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          }, function (error) {
+            // Handle unsuccessful uploads
+            console.log(error)
+          }, function () {
+            // Handle successful uploads on complete
+            // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+            progress.snapshot.ref.getDownloadURL().then(function (downloadURL) {
+              console.log('File available at', downloadURL)
+              this.imageUrl = downloadURL
+              this.recompte.refActa = downloadURL
+              this.adjuntant = false
+            })
+          })
+        })
+      } else {
+        this.imageName = ''
+        this.imageFile = ''
+        this.imageUrl = ''
+      }
+    },
+    pickFile () {
+      this.$refs.image.click()
     },
     saveRecompte () {
       if (this.recompteCorrecte) {
