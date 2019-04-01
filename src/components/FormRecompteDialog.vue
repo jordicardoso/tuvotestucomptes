@@ -23,6 +23,7 @@
             </v-flex>
           </v-layout>
           <v-layout wrap v-if="recompte.idMesa">
+            <!-- TODO: Fer un loading -->
             <v-flex xs4 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
               <v-text-field box hide-details class="mb-2 mr-1" v-model="partit.vots" @focus="$event.target.select()" type="number" min="0" :label="partit.abreviat" placeholder='0' required></v-text-field>
             </v-flex>
@@ -31,7 +32,7 @@
           <input type="file" ref="image" style="display:none" accept="image/*" capture="environment" @change="onFilePicked">
           <v-btn :loading="adjuntant" :disabled="adjuntant" block large color="secondary" @click="pickFile"><v-icon left>camera</v-icon>Adjuntar foto de l'acta</v-btn>
           <v-progress-linear v-show="adjuntant" v-model="progress"></v-progress-linear>
-          <v-img :src="imageUrl"/>
+          <v-img v-if="recompte.refActa" :src="recompte.refActa"/>
           <!--<div class="camera-modal">
             <video ref="video" class="camera-stream"/>
             <div class="camera-modal-container">
@@ -48,8 +49,7 @@
 </template>
 
 <script>
-import { db, idEleccions } from '../main'
-import firebase from 'firebase/app'
+import { db, idEleccions, storage } from '../main'
 export default {
   props: ['mesa', 'dialog'],
   data () {
@@ -172,9 +172,9 @@ export default {
       this.$emit('close', null)
     },
     onFilePicked (f) {
-      console.log(f)
       const files = f.target.files
       if (files[0] !== undefined) {
+        let self = this
         this.adjuntant = true
         this.imageName = files[0].name
         if (this.imageName.lastIndexOf('.') <= 0) {
@@ -183,19 +183,18 @@ export default {
         const fr = new FileReader()
         fr.readAsDataURL(files[0])
         fr.addEventListener('load', () => {
-          this.imageUrl = fr.result
+          // this.imageUrl = fr.result
           this.imageFile = files[0] // this is an image file that can be sent to server...
-          console.log(this.imageUrl)
-          console.log(this.imageFile)
-          var storageRef = firebase.storage().ref()
-          var ref = storageRef.child(this.imageFile.name)
-          var progress = ref.put(this.imageFile).then(function (snapshot) {
+          var storageRef = storage.ref()
+          var ref = storageRef.child(this.recompte.idMesa + '/' + this.$root.user.uid + '/' + new Date().getTime() + '/' + this.imageFile.name)
+          var progress = ref.put(this.imageFile)
+          /* .then(function (snapshot) {
             console.log('ref.put(...')
             console.log(snapshot)
             this.adjuntant = false
-          })
+          }) */
           progress.on('state_changed', function (snapshot) {
-            this.progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            self.progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
           }, function (error) {
             // Handle unsuccessful uploads
             console.log(error)
@@ -203,10 +202,10 @@ export default {
             // Handle successful uploads on complete
             // For instance, get the download URL: https://firebasestorage.googleapis.com/...
             progress.snapshot.ref.getDownloadURL().then(function (downloadURL) {
-              console.log('File available at', downloadURL)
-              this.imageUrl = downloadURL
-              this.recompte.refActa = downloadURL
-              this.adjuntant = false
+              // console.log('File available at', downloadURL)
+              self.imageUrl = downloadURL
+              self.recompte.refActa = downloadURL
+              self.adjuntant = false
             })
           })
         })

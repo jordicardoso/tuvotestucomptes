@@ -9,6 +9,7 @@ import VueFire from 'vuefire'
 import firebase from 'firebase/app'
 import 'firebase/firestore'
 import 'firebase/auth'
+import 'firebase/storage'
 
 Vue.config.productionTip = false
 Vue.use(VueFire)
@@ -16,8 +17,8 @@ firebase.initializeApp({
   apiKey: 'AIzaSyBuVnxXP3BL6J0AysynbBewZrVJ9b-w724',
   authDomain: 'tuvotestucomptes-2ecb8.firebaseapp.com',
   projectId: 'tuvotestucomptes-2ecb8',
-  databaseURL: 'https://tuvotestucomptes-2ecb8.firebaseio.com'
-  // storageBucket: 'gs://tuvotestucomptes-2ecb8.appspot.com'
+  databaseURL: 'https://tuvotestucomptes-2ecb8.firebaseio.com',
+  storageBucket: 'gs://tuvotestucomptes-2ecb8.appspot.com'
 })
 firebase.firestore().enablePersistence()
   .catch(function (err) {
@@ -30,6 +31,7 @@ firebase.firestore().enablePersistence()
 
 export const idEleccions = 'K92HNeLF7hsBDA1KntKB'
 export const db = firebase.firestore()
+export const storage = firebase.storage()
 
 const initializeAuth = new Promise(resolve => {
   // this adds a hook for the initial auth-change event
