@@ -1,11 +1,11 @@
 <template>
   <v-dialog v-model="dialog" scrollable fullscreen>
     <v-card>
-      <v-toolbar dark color="primary">
-        <v-btn icon dark @click="closeDialog"><v-icon>close</v-icon></v-btn>
+      <v-toolbar dense dark color="primary">
+        <v-toolbar-side-icon @click="closeDialog"><v-icon>close</v-icon></v-toolbar-side-icon>
         <v-toolbar-title>Registre de vots</v-toolbar-title>
         <v-spacer/>
-        <v-toolbar-items><v-btn dark flat @click="saveRecompte">Guardar</v-btn></v-toolbar-items>
+        <v-btn icon color="info" @click="saveRecompte"><v-icon>save</v-icon></v-btn>
       </v-toolbar>
       <v-card-text class="pa-0" >
         <v-list>
@@ -20,7 +20,7 @@
           <v-text-field required box hide-details class="mx-2 mb-1" v-model="recompte.totalVots" @focus.native="$event.target.select()" type="number" label="Total Vots" placeholder='0' required/>
           <v-layout mx-1 wrap v-if="recompte.idMesa">
             <!-- TODO: Fer un loading -->
-            <v-flex xs6 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
+            <v-flex xs6 sm3 v-for="partit in recompte.vots" v-bind:key="partit.idPartit">
               <v-text-field required hide-details class="mb-1 mx-1" v-model="partit.vots" @focus.native="$event.target.select()" type="number" min="0" :label="partit.nom" placeholder='0' required/>
             </v-flex>
           </v-layout>
@@ -37,11 +37,20 @@
 
 <script>
 import { db, idEleccions, storage } from '../main'
+import { constants } from 'fs';
 export default {
   props: ['mesa','provincia','dialog'],
   data () {
     return {
-      partits: null,
+      partits: [
+        {
+          abreviat: 'blancs',
+          nom: 'Vots en blanc'
+        },{
+          abreviat: 'nuls',
+          nom: 'Vots nuls'
+        }
+      ],
       imageName: '',
       imageFile: '',
       imageUrl: '',
@@ -52,29 +61,40 @@ export default {
   },
   mounted () {
     var self = this
-    //db.collection('eleccions').doc(idEleccions)
-    db.collection('vots')
-      // .where('idUser', '==', this.$root.user.uid)
-      .where('idMesa', '==', this.mesa.idMesa)
-      .where('idEleccions', '==', idEleccions)
-      .orderBy('data', 'desc').limit(1).get().then(function (querySnapshot) {
-        self.init()
+    db.collection('eleccions').doc(idEleccions).collection('circunscripcio')
+      .where('provincia','==',this.provincia).limit(1).get().then(function (querySnapshot) {
         querySnapshot.forEach(function (doc) {
-          let obj = doc.data()
-          if (obj) {
-            // obj.id = doc.id
-            // TODO: sincronitzar objecte en comptes de copiar-lo tal qual
-            self.recompte = obj
-          }
+          db.collection('eleccions').doc(idEleccions).collection('circunscripcio')
+            .doc(doc.id).collection('partits').orderBy('nom').get().then(function (querySnapshot) {
+              querySnapshot.forEach(function (doc) {
+                self.partits.push(doc.data())
+              })
+              // Ara que ja tenim els partits, podem inicialitzar el registre de vots i comprovar si ja n'hi ha
+              db.collection('vots')
+                // .where('idUser', '==', this.$root.user.uid)
+                .where('idMesa', '==', self.mesa.idMesa)
+                .where('idEleccions', '==', idEleccions)
+                .orderBy('data', 'desc').limit(1).get().then(function (querySnapshot) {
+                  self.init()
+                  querySnapshot.forEach(function (doc) {
+                    let obj = doc.data()
+                    if (obj) {
+                      // obj.id = doc.id
+                      // TODO: sincronitzar objecte en comptes de copiar-lo tal qual
+                      self.recompte = obj
+                    }
+                  })
+                })
+            })
         })
       })
   },
-  firestore () {
+  /* firestore () {
     return {
-      partits: db.collection('eleccions').doc(idEleccions).collection('partits').orderBy('nom')
-      //partits: db.collection('eleccions').doc(idEleccions)
+      // partits: db.collection('eleccions').doc(idEleccions).collection('partits').orderBy('nom')
+      // partits: db.collection('eleccions').doc(idEleccions).collection('circunscripcio').where('provincia','==',this.provincia)
     }
-  },
+  }, */
   computed: {
     detalls () {
       return [
@@ -94,7 +114,7 @@ export default {
     sumaVots () {
       var sum = 0
       for (let el in this.recompte.vots) {
-        sum += parseInt(this.recompte.vots[el].vots)
+        sum += parseInt(this.recompte.vots[el].vots)  || 0
       }
       return sum
     },
@@ -144,7 +164,7 @@ export default {
         processat: false,
         // ______REGISTRE EN SI______
         refActa: null,
-        totalVots: 0,
+        totalVots: null,
         vots: this.partitsVots
       }
     },
@@ -199,7 +219,7 @@ export default {
       this.$refs.image.click()
     },
     saveRecompte () {
-      if (this.recompteCorrecte && this.totalVots > 0) {
+      if (this.recompteCorrecte && this.recompte.totalVots > 0) {
         this.recompte.data = new Date()
         let self = this
         db.collection('vots').add(this.recompte).then(function () {
@@ -211,7 +231,7 @@ export default {
             alert('🤕\nNo s\'ha pogut guardar')
           })
         })
-      } else if (this.totalVots > 0) {
+      } else if (this.recompte.totalVots > 0) {
         alert('🤕\nLa suma de vots dels partits no és igual al total de vots')
       } else {
         alert('🤕\nCal registrar vots per poder guardar')
