@@ -30,7 +30,10 @@
             </v-list-tile>
           </v-list>
         </v-card>
-        <form-recompte-dialog v-if="dialog" :mesa="mesa" v-on:close="formRecompteClose" :dialog="dialog"/>
+        <!--<form-recompte-dialog :mesa="mesa" v-on:close="formRecompteClose" :dialog="dialog"/>-->
+        <v-dialog-bottom-transition>
+          <component v-bind:is="formRecompteDialog" :mesa="mesa" :provincia="provincia" v-on:close="formRecompteClose" :dialog="dialog"/>
+        </v-dialog-bottom-transition>
     </v-layout>
   </v-container>
 </template>
@@ -60,7 +63,8 @@ export default {
       dialog: null,
       loadingMunicipis: false,
       loadingMeses: false,
-      loadingDistrictes: false
+      loadingDistrictes: false,
+      formRecompteDialog: ''
     }
   },
   firestore () {
@@ -161,9 +165,11 @@ export default {
     openDialog (mesa) {
       this.mesa = mesa
       this.dialog = true
+      this.formRecompteDialog = 'form-recompte-dialog'
     },
     formRecompteClose (recompte) {
       this.dialog = false
+      this.formRecompteDialog = ''
       // TODO: actualitzar la llista en calent
     }
   }
