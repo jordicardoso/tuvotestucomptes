@@ -47,6 +47,7 @@ export default {
   data () {
     return {
       eleccions: [],
+      circunscripcions: [],
       partits: [],
       eleccio: null,
       partit: null,
@@ -72,15 +73,9 @@ export default {
   methods: {
     openPartits (eleccio) {
       this.partits = []
+      console.log(eleccions)
       this.eleccio = eleccio
       var self = this
-      db.collection('eleccions').doc('K92HNeLF7hsBDA1KntKB').collection('partits').orderBy('abreviat')
-        .get()
-        .then(function (querySnapshot) {
-          querySnapshot.forEach(function (doc) {
-            self.partits.push(doc.data())
-          })
-        })
     }
   }
 }
